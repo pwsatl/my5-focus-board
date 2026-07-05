@@ -1,1 +1,22 @@
-
+{
+  "manifest_version": 3,
+  "name": "My5 Focus Board",
+  "version": "1.0",
+  "description": "Personal task board with My 5 priorities, drag-and-drop, and email parsing.",
+  "permissions": [
+    "sidePanel",
+    "storage"
+  ],
+  "side_panel": {
+    "default_path": "panel.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Open My5 Focus Board"
+  },
+  "icons": {
+    "48": "icon48.png"
+  }
+}
