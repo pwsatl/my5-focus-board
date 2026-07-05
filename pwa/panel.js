@@ -1400,21 +1400,23 @@ function wireSettingsSync() {
   if (syncReady()) loadTeamLists();
 }
 
-// Create a shared list on Cloudflare and add it locally (used by the + modal)
+// Create a shared list on Cloudflare and add it locally (used by the + modal).
+// Uses the plain push endpoint (team code only), so ANY team member can create
+// shared lists — admin is only needed for destructive actions (delete/convert).
 async function createSharedList(label) {
   const id = 'shared-' + label.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Date.now();
-  const res  = await fetch(`${workerUrl()}/admin/list`, {
-    method: 'POST', headers: adminHeaders(),
-    body: JSON.stringify({ id, label })
+  const res  = await fetch(`${workerUrl()}/lists/${id}`, {
+    method: 'POST', headers: syncHeaders(),
+    body: JSON.stringify({ tasks: [], listLabel: label, updatedBy: userName || syncConfig.team })
   });
   const data = await res.json();
   if (!data.ok) throw new Error(data.error || 'unknown');
-  if (!lists.find(l => l.id === data.id)) {
-    lists.push({ id: data.id, label: data.label, builtin: false, shared: true, hidden: false });
-    ensureView(data.id);
+  if (!lists.find(l => l.id === id)) {
+    lists.push({ id, label, builtin: false, shared: true, hidden: false });
+    ensureView(id);
     saveState(); renderTabStrip(); render();
   }
-  return data.id;
+  return id;
 }
 
 // ── Device sync (personal board across devices) ─────────────────────────────
@@ -1964,15 +1966,13 @@ document.getElementById('tab-add').addEventListener('click', () => {
   document.getElementById('new-list-name').value = '';
   // Shared option: only when connected to a team AND holding the admin code
   const sharedRow = document.getElementById('nl-shared-row');
-  const canShare  = syncReady() && isAdmin();
+  const canShare  = syncReady();
   sharedRow.style.display = canShare ? 'flex' : 'none';
   document.getElementById('nl-shared').checked = false;
   if (canShare) document.getElementById('nl-shared-team').textContent = currentTeamName();
   document.getElementById('nl-hint').textContent = canShare
     ? 'Private = just you. Shared = everyone on the team sees it instantly.'
-    : (syncReady()
-        ? 'This list is private to you. (Only the team admin can create shared lists.)'
-        : 'This list is private to you. Join a team in Settings to create shared lists.');
+    : 'This list is private to you. Join a team in Settings to create shared lists.';
   document.getElementById('new-list-modal').classList.add('visible');
   setTimeout(() => document.getElementById('new-list-name').focus(), 50);
 });
@@ -1980,7 +1980,7 @@ document.getElementById('nl-cancel').addEventListener('click', () => document.ge
 document.getElementById('nl-create').addEventListener('click', async () => {
   const name = document.getElementById('new-list-name').value.trim();
   if (!name) return;
-  const shared = document.getElementById('nl-shared').checked && syncReady() && isAdmin();
+  const shared = document.getElementById('nl-shared').checked && syncReady();
   const btn = document.getElementById('nl-create');
   if (shared) {
     btn.textContent = 'Creating…'; btn.disabled = true;
@@ -2380,10 +2380,150 @@ loadState(()=>{
   startSyncTimer();
 });
 
+// ── Touch drag support (phones & tablets) ───────────────────────────────────
+// Mobile browsers never fire HTML5 drag events, so this shim translates touch
+// gestures on the grip handle into the exact same operations the mouse drag
+// performs: reorder within a list, drop onto My 5, drop onto a tab or list.
+(function initTouchDrag() {
+  let td = null; // active touch-drag state
+
+  function clearHighlights() {
+    document.querySelectorAll('.drop-above,.drop-below').forEach(el => el.classList.remove('drop-above','drop-below'));
+    document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    document.querySelectorAll('.drag-over-tab').forEach(el => el.classList.remove('drag-over-tab'));
+  }
+
+  function startDrag(touch) {
+    td.dragging = true;
+    draggingId    = td.id;
+    reorderDragId = td.reorder ? td.id : null;
+    reorderListEl = td.reorder ? td.listEl : null;
+    td.outer.classList.add('dragging');
+    // Floating ghost that follows the finger
+    const r = td.outer.getBoundingClientRect();
+    const g = td.outer.cloneNode(true);
+    g.className += ' touch-ghost';
+    g.style.width = r.width + 'px';
+    g.style.left  = r.left + 'px';
+    g.style.top   = r.top + 'px';
+    document.body.appendChild(g);
+    td.ghost = g;
+    td.gx = touch.clientX - r.left;
+    td.gy = touch.clientY - r.top;
+  }
+
+  function onMove(e) {
+    if (!td) return;
+    const t = e.touches[0];
+    if (!td.dragging) {
+      if (Math.hypot(t.clientX - td.sx, t.clientY - td.sy) < 6) return;
+      startDrag(t);
+    }
+    e.preventDefault(); // stop the page from scrolling while dragging
+    td.ghost.style.left = (t.clientX - td.gx) + 'px';
+    td.ghost.style.top  = (t.clientY - td.gy) + 'px';
+
+    clearHighlights();
+    td.target = null;
+    const el = document.elementFromPoint(t.clientX, t.clientY);
+    if (!el) return;
+
+    // Drop on My 5 zone
+    const zone = el.closest('#active-zone');
+    if (zone) { zone.classList.add('drag-over'); td.target = { type: 'zone' }; return; }
+
+    // Drop on a tab
+    const tab = el.closest('.tab');
+    if (tab && tab.dataset.tabId) {
+      tab.classList.add('drag-over-tab');
+      td.target = { type: 'tab', listId: tab.dataset.tabId };
+      return;
+    }
+
+    // Reorder against another card in the same list
+    const card = el.closest('.card');
+    if (card && card !== td.outer && td.reorder && card.closest('.card-list') === td.listEl) {
+      const r   = card.getBoundingClientRect();
+      const pos = t.clientY < r.top + r.height / 2 ? 'before' : 'after';
+      card.classList.add(pos === 'before' ? 'drop-above' : 'drop-below');
+      td.target = { type: 'card', id: parseInt(card.dataset.id), pos };
+      return;
+    }
+
+    // Drop on a list body
+    const listEl = el.closest('.card-list');
+    if (listEl && listEl.id && listEl.id.indexOf('list-') === 0) {
+      const lid  = listEl.id.slice(5);
+      const list = lists.find(l => l.id === lid);
+      if (list && !list.shared) {
+        listEl.classList.add('drag-over');
+        td.target = { type: 'list', listId: lid };
+      }
+    }
+  }
+
+  function onEnd() {
+    if (!td) return;
+    const target = td.dragging ? td.target : null;
+    // Cleanup first
+    clearHighlights();
+    if (td.ghost) td.ghost.remove();
+    td.outer.classList.remove('dragging');
+    const id = td.id;
+    draggingId = reorderDragId = reorderListEl = null;
+    document.removeEventListener('touchmove', onMove);
+    document.removeEventListener('touchend', onEnd);
+    document.removeEventListener('touchcancel', onEnd);
+    td = null;
+    if (!target) return;
+
+    const task = tasks.find(x => x.id === id);
+    if (!task) return;
+
+    if (target.type === 'zone') {
+      // Same rules as the mouse drop on #active-zone
+      if (task.active) return;
+      if (tasks.filter(t => t.active).length >= 5) return;
+      task.active = true; task.listId = 'pipeline';
+      saveState('pipeline'); render();
+    } else if (target.type === 'card') {
+      reorderTask(id, target.id, target.pos);
+    } else if (target.type === 'tab') {
+      task.listId = target.listId; task.active = false;
+      saveState(target.listId);
+      if (target.listId !== currentTab) switchTab(target.listId); else render();
+    } else if (target.type === 'list') {
+      task.listId = target.listId; task.active = false;
+      saveState(target.listId); render();
+    }
+  }
+
+  document.addEventListener('touchstart', e => {
+    const handle = e.target.closest('[data-handle]');
+    if (!handle || td) return;
+    const outer = handle.closest('.card, .my5-card');
+    if (!outer) return;
+    const id   = parseInt(outer.dataset.id);
+    const task = tasks.find(x => x.id === id);
+    if (!task) return;
+    const list = lists.find(l => l.id === task.listId);
+    if (list && list.shared && !task.active) return; // drag disabled on shared, same as mouse
+    const isActive = outer.classList.contains('my5-card');
+    td = {
+      id, outer,
+      reorder: !isActive,
+      listEl: !isActive ? outer.closest('.card-list') : null,
+      sx: e.touches[0].clientX, sy: e.touches[0].clientY,
+      dragging: false, target: null, ghost: null
+    };
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend', onEnd);
+    document.addEventListener('touchcancel', onEnd);
+  }, { passive: true });
+})();
+
 
 // ── PWA bootstrap ───────────────────────────────────────────────────────────
-// (This file is the web-app build. Storage falls back to localStorage,
-//  and extension-only UI is hidden below.)
 (function pwaInit() {
   const pop = document.getElementById('popout-btn');
   if (pop) pop.style.display = 'none';
