@@ -1400,21 +1400,23 @@ function wireSettingsSync() {
   if (syncReady()) loadTeamLists();
 }
 
-// Create a shared list on Cloudflare and add it locally (used by the + modal)
+// Create a shared list on Cloudflare and add it locally (used by the + modal).
+// Uses the plain push endpoint (team code only), so ANY team member can create
+// shared lists — admin is only needed for destructive actions (delete/convert).
 async function createSharedList(label) {
   const id = 'shared-' + label.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Date.now();
-  const res  = await fetch(`${workerUrl()}/admin/list`, {
-    method: 'POST', headers: adminHeaders(),
-    body: JSON.stringify({ id, label })
+  const res  = await fetch(`${workerUrl()}/lists/${id}`, {
+    method: 'POST', headers: syncHeaders(),
+    body: JSON.stringify({ tasks: [], listLabel: label, updatedBy: userName || syncConfig.team })
   });
   const data = await res.json();
   if (!data.ok) throw new Error(data.error || 'unknown');
-  if (!lists.find(l => l.id === data.id)) {
-    lists.push({ id: data.id, label: data.label, builtin: false, shared: true, hidden: false });
-    ensureView(data.id);
+  if (!lists.find(l => l.id === id)) {
+    lists.push({ id, label, builtin: false, shared: true, hidden: false });
+    ensureView(id);
     saveState(); renderTabStrip(); render();
   }
-  return data.id;
+  return id;
 }
 
 // ── Device sync (personal board across devices) ─────────────────────────────
@@ -1964,15 +1966,13 @@ document.getElementById('tab-add').addEventListener('click', () => {
   document.getElementById('new-list-name').value = '';
   // Shared option: only when connected to a team AND holding the admin code
   const sharedRow = document.getElementById('nl-shared-row');
-  const canShare  = syncReady() && isAdmin();
+  const canShare  = syncReady();
   sharedRow.style.display = canShare ? 'flex' : 'none';
   document.getElementById('nl-shared').checked = false;
   if (canShare) document.getElementById('nl-shared-team').textContent = currentTeamName();
   document.getElementById('nl-hint').textContent = canShare
     ? 'Private = just you. Shared = everyone on the team sees it instantly.'
-    : (syncReady()
-        ? 'This list is private to you. (Only the team admin can create shared lists.)'
-        : 'This list is private to you. Join a team in Settings to create shared lists.');
+    : 'This list is private to you. Join a team in Settings to create shared lists.';
   document.getElementById('new-list-modal').classList.add('visible');
   setTimeout(() => document.getElementById('new-list-name').focus(), 50);
 });
@@ -1980,7 +1980,7 @@ document.getElementById('nl-cancel').addEventListener('click', () => document.ge
 document.getElementById('nl-create').addEventListener('click', async () => {
   const name = document.getElementById('new-list-name').value.trim();
   if (!name) return;
-  const shared = document.getElementById('nl-shared').checked && syncReady() && isAdmin();
+  const shared = document.getElementById('nl-shared').checked && syncReady();
   const btn = document.getElementById('nl-create');
   if (shared) {
     btn.textContent = 'Creating…'; btn.disabled = true;
