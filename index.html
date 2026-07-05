@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>My5 Focus Board</title>
+  <meta name="theme-color" content="#3B6D11">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon-192.png">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="My5 Focus">
+  <link rel="stylesheet" href="panel.css">
+</head>
+<body>
+
+<div class="panel" id="panel">
+
+  <!-- ── Header ─────────────────────────────────────────────────────────── -->
+  <div class="panel-header">
+    <span class="panel-title">My5 Focus Board</span>
+    <div class="team-switcher" id="team-switcher">
+      <div class="team-switcher-btn" id="team-switcher-btn">
+        <span class="team-switcher-name" id="team-switcher-name">Personal</span>
+        <svg viewBox="0 0 8 8" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M1 2.5l3 3 3-3"/></svg>
+      </div>
+      <div class="team-switcher-menu" id="team-switcher-menu" style="display:none"></div>
+    </div>
+    <div class="header-btns">
+      <div class="header-icon-btn" id="data-btn" title="Export / Import">
+        <svg viewBox="0 0 20 20" fill="currentColor" style="opacity:0.6">
+          <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"/>
+        </svg>
+      </div>
+      <div class="header-icon-btn" id="settings-btn" title="Settings">
+        <svg viewBox="0 0 20 20" fill="currentColor" style="opacity:0.6">
+          <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/>
+        </svg>
+      </div>
+      <div class="header-icon-btn" id="popout-btn" title="Open in full tab">
+        <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3">
+          <rect x="1" y="3" width="7" height="7" rx="1"/>
+          <path d="M5 1h6v6M8 1l3 3-4 4"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Search ─────────────────────────────────────────────────────────── -->
+  <div class="search-bar">
+    <div class="search-wrap">
+      <svg class="search-icon" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3">
+        <circle cx="5" cy="5" r="3.5"/><path d="M8 8l2.5 2.5"/>
+      </svg>
+      <input id="search-input" type="text" placeholder="Search tasks...">
+      <span class="search-clear" id="search-clear">×</span>
+    </div>
+  </div>
+
+  <!-- ── My 5 — always visible ──────────────────────────────────────────── -->
+  <div class="my5-zone-wrapper">
+    <div class="my5-label">
+      My 5
+      <span class="my5-count" id="active-count">0 / 5</span>
+    </div>
+    <div class="my5-drop" id="active-zone"></div>
+  </div>
+
+  <!-- ── Tab strip ──────────────────────────────────────────────────────── -->
+  <div class="tab-strip" id="tab-strip">
+    <div class="tab-add" id="tab-add" title="New list">+</div>
+  </div>
+
+  <!-- ── Pipeline view ──────────────────────────────────────────────────── -->
+  <div class="view visible" id="view-pipeline">
+    <div class="list-area">
+      <div class="quickadd-bar">
+        <input type="text" class="quickadd-input" id="quickadd-pipeline" placeholder="Quick add to Pipeline… (Enter to save)">
+        <button class="quickadd-btn" data-qa="pipeline">+ Add Task</button>
+      </div>
+      <div class="card-list" id="list-pipeline"></div>
+    </div>
+  </div>
+
+  <!-- ── Backlog view ───────────────────────────────────────────────────── -->
+  <div class="view" id="view-backlog">
+    <div class="list-area">
+      <div class="quickadd-bar">
+        <input type="text" class="quickadd-input" id="quickadd-backlog" placeholder="Quick add to Backlog… (Enter to save)">
+        <button class="quickadd-btn" data-qa="backlog">+ Add Task</button>
+      </div>
+      <div class="card-list" id="list-backlog"></div>
+    </div>
+  </div>
+
+  <!-- ── Done drawer ────────────────────────────────────────────────────── -->
+  <div class="done-drawer" id="done-drawer">
+    <div class="done-drawer-header">
+      <div class="done-drawer-title">Completed</div>
+      <div class="done-drawer-actions">
+        <button class="clear-btn" id="clear-done-btn">Clear all</button>
+        <span class="done-close" id="done-close">×</span>
+      </div>
+    </div>
+    <div class="done-list" id="done-list"></div>
+  </div>
+
+  <!-- ── Done footer ────────────────────────────────────────────────────── -->
+  <div class="done-footer">
+    <div class="done-footer-btn" id="done-footer-btn">
+      <div class="done-check-icon">
+        <svg viewBox="0 0 9 9" fill="none" stroke="white" stroke-width="1.8">
+          <path d="M1.5 4.5l2 2 4-4"/>
+        </svg>
+      </div>
+      <span class="done-footer-label">Completed</span>
+      <span class="done-count-pill" id="done-count-pill" style="display:none">0</span>
+    </div>
+    <span class="done-footer-meta" id="done-footer-meta"></span>
+  </div>
+
+  <!-- ── Settings drawer ───────────────────────────────────────────────── -->
+  <div class="settings-drawer" id="settings-drawer">
+    <div class="settings-header">
+      <span class="settings-title">Settings</span>
+      <span class="settings-close" id="settings-close">×</span>
+    </div>
+
+    <div class="settings-section-label">Your Profile</div>
+    <div class="settings-sync-body">
+      <div class="sync-field-label">Your name <span style="font-weight:400;color:#bbb;">(appears on comments)</span></div>
+      <input type="text" id="settings-name" class="sync-input" placeholder="e.g. Patty" maxlength="32">
+      <div class="sync-row-btns" style="margin-top:8px;">
+        <button class="sync-btn-save" id="save-name-btn" style="flex:1;">Save name</button>
+      </div>
+      <div class="sync-status" id="name-status"></div>
+    </div>
+
+    <div class="settings-section-label">Personalization</div>
+    <div class="settings-sync-body">
+
+      <div class="sync-field-label">Color theme</div>
+      <div class="theme-grid" id="theme-grid">
+        <div class="theme-swatch active" data-theme="green" title="Forest (default)">
+          <div class="swatch-my5" style="background:#EAF3DE;border-color:#97C459;"></div>
+          <div class="swatch-accent" style="background:#3B6D11;"></div>
+          <span>Forest</span>
+        </div>
+        <div class="theme-swatch" data-theme="blue" title="Ocean">
+          <div class="swatch-my5" style="background:#E6F1FB;border-color:#A8CDEE;"></div>
+          <div class="swatch-accent" style="background:#185FA5;"></div>
+          <span>Ocean</span>
+        </div>
+        <div class="theme-swatch" data-theme="purple" title="Dusk">
+          <div class="swatch-my5" style="background:#EEEDFE;border-color:#C5C2F9;"></div>
+          <div class="swatch-accent" style="background:#3C3489;"></div>
+          <span>Dusk</span>
+        </div>
+        <div class="theme-swatch" data-theme="amber" title="Amber">
+          <div class="swatch-my5" style="background:#FAEEDA;border-color:#FAC775;"></div>
+          <div class="swatch-accent" style="background:#854F0B;"></div>
+          <span>Amber</span>
+        </div>
+        <div class="theme-swatch" data-theme="slate" title="Slate">
+          <div class="swatch-my5" style="background:#F1F1F3;border-color:#C8C8D0;"></div>
+          <div class="swatch-accent" style="background:#3D3D4E;"></div>
+          <span>Slate</span>
+        </div>
+        <div class="theme-swatch" data-theme="dark" title="Dark">
+          <div class="swatch-my5" style="background:#2A2A2A;border-color:#444;"></div>
+          <div class="swatch-accent" style="background:#111;"></div>
+          <span>Dark</span>
+        </div>
+        <div class="theme-swatch" data-theme="pink" title="Pink">
+          <div class="swatch-my5" style="background:#FDEEF5;border-color:#F4AACF;"></div>
+          <div class="swatch-accent" style="background:#C4437F;"></div>
+          <span>Pink 💅</span>
+        </div>
+        <div class="theme-swatch" data-theme="sparkles" title="Sparkles">
+          <div class="swatch-my5" style="background:linear-gradient(135deg,#FFF0FA,#F0EEFF,#FFF8E7);border-color:#D4AAFF;"></div>
+          <div class="swatch-accent" style="background:linear-gradient(135deg,#B44FE8,#E05C9A);"></div>
+          <span>✨ Magic</span>
+        </div>
+        <div class="theme-swatch" data-theme="teal" title="Teal">
+          <div class="swatch-my5" style="background:#E4F5F3;border-color:#99D9D0;"></div>
+          <div class="swatch-accent" style="background:#0F766E;"></div>
+          <span>Teal</span>
+        </div>
+        <div class="theme-swatch" data-theme="crimson" title="Crimson">
+          <div class="swatch-my5" style="background:#FBEAEA;border-color:#F0AEAE;"></div>
+          <div class="swatch-accent" style="background:#B91C1C;"></div>
+          <span>Crimson</span>
+        </div>
+        <div class="theme-swatch" data-theme="sunset" title="Sunset">
+          <div class="swatch-my5" style="background:linear-gradient(135deg,#FFF1E4,#FDE7EF);border-color:#F8B27E;"></div>
+          <div class="swatch-accent" style="background:linear-gradient(135deg,#EA580C,#E05C9A);"></div>
+          <span>Sunset</span>
+        </div>
+        <div class="theme-swatch" data-theme="midnight" title="Midnight">
+          <div class="swatch-my5" style="background:#232A3D;border-color:#3B476B;"></div>
+          <div class="swatch-accent" style="background:#4A5D9E;"></div>
+          <span>Midnight</span>
+        </div>
+      </div>
+
+      <div class="sync-field-label" style="margin-top:12px;">Font</div>
+      <div class="font-options" id="font-options">
+        <div class="font-opt active" data-font="system" style="font-family:system-ui,sans-serif;">System</div>
+        <div class="font-opt" data-font="serif" style="font-family:Georgia,serif;">Serif</div>
+        <div class="font-opt" data-font="mono" style="font-family:'Courier New',monospace;">Mono</div>
+        <div class="font-opt" data-font="rounded" style="font-family:'Trebuchet MS',sans-serif;">Rounded</div>
+        <div class="font-opt" data-font="elegant" style="font-family:'Palatino Linotype',Palatino,serif;">Elegant</div>
+        <div class="font-opt" data-font="casual" style="font-family:'Comic Sans MS',cursive;">Casual</div>
+      </div>
+
+      <div class="sync-field-label" style="margin-top:12px;">Completion sound</div>
+      <div class="sound-row">
+        <div class="sound-options" id="sound-options">
+          <div class="sound-opt active" data-sound="off">Off</div>
+          <div class="sound-opt" data-sound="chime">Chime</div>
+          <div class="sound-opt" data-sound="success">Fanfare</div>
+          <div class="sound-opt" data-sound="sparkles">✨</div>
+          <div class="sound-opt" data-sound="bubble">Bubble</div>
+          <div class="sound-opt" data-sound="arcade">Arcade</div>
+        </div>
+        <div class="volume-wrap">
+          <span style="font-size:10px;color:#aaa;">Vol</span>
+          <input type="range" id="sound-volume" min="0" max="100" value="60" class="volume-slider">
+          <button class="sound-preview-btn" id="sound-preview-btn" title="Preview sound">▶</button>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="settings-section-label">Device Sync</div>
+    <div class="settings-sync-body">
+      <!-- Not set up -->
+      <div id="ps-off">
+        <div style="font-size:11.5px;color:#888;line-height:1.5;margin-bottom:8px;">
+          Sync your <b>personal board</b> — My 5, Pipeline, Backlog, and private lists — across your computer, phone, and anywhere else you use My5 Focus Board. Just yours, not shared with the team.
+        </div>
+        <button class="sync-btn-save team-big-btn" id="ps-create-btn">🔄 Sync this board across my devices</button>
+        <div class="team-or">— or —</div>
+        <div class="sync-field-label">Already synced on another device?</div>
+        <div style="display:flex;gap:7px;margin-top:4px;">
+          <input type="text" id="ps-link-input" class="sync-input team-code-input" placeholder="Your device sync code" maxlength="16" style="flex:1;">
+          <button class="sync-btn-save" id="ps-link-btn" style="min-width:64px;">Link</button>
+        </div>
+      </div>
+      <!-- Active -->
+      <div id="ps-on" style="display:none;">
+        <div class="team-connected-card">
+          <div class="team-connected-name">🔄 Device sync is on</div>
+          <div class="team-invite-label">Your device sync code — enter it on your other devices. Keep it to yourself:</div>
+          <div class="team-invite-code" id="ps-code"></div>
+          <div style="font-size:11px;color:#888;text-align:center;" id="ps-summary"></div>
+          <div class="sync-row-btns" style="margin-top:8px;">
+            <button class="sync-btn-save" id="ps-copy-btn" style="flex:1;">📋 Copy code</button>
+            <button class="sync-btn-test" id="ps-sync-now-btn" style="flex:1;">↻ Sync now</button>
+          </div>
+        </div>
+        <button class="team-leave-btn" id="ps-off-btn">Turn off device sync on this device</button>
+      </div>
+      <div class="sync-status" id="ps-status"></div>
+    </div>
+
+    <div class="settings-section-label">Team</div>
+    <div class="settings-sync-body">
+      <div id="worker-url-warning" style="display:none;font-size:11px;line-height:1.4;color:#b3541e;background:#FAECE7;border-radius:8px;padding:8px 10px;margin-bottom:10px;">
+        ⚠ One-time setup: open <b>panel.js</b> and set <b>DEFAULT_WORKER_URL</b> to your deployed Worker URL.
+      </div>
+
+      <!-- Not connected -->
+      <div id="team-not-connected">
+        <input type="text" id="new-team-name" class="sync-input" placeholder="Team name e.g. Leadership, CSR…" maxlength="32">
+        <button class="sync-btn-save team-big-btn" id="start-team-btn">🚀 Start a team</button>
+        <div class="team-or">— or —</div>
+        <div class="sync-field-label">Have an invite code?</div>
+        <div style="display:flex;gap:7px;margin-top:4px;">
+          <input type="text" id="join-code-input" class="sync-input team-code-input" placeholder="e.g. 7F3KQ2MW" maxlength="16" style="flex:1;">
+          <button class="sync-btn-save" id="join-team-btn" style="min-width:64px;">Join</button>
+        </div>
+      </div>
+
+      <!-- Connected -->
+      <div id="team-connected" style="display:none;">
+        <div class="team-connected-card">
+          <div class="team-connected-name"><span id="connected-team-name"></span> <span class="team-admin-badge" id="connected-admin-badge" style="display:none;">Admin</span></div>
+          <div class="team-invite-label">Invite code — send this to teammates, it's all they need:</div>
+          <div class="team-invite-code" id="connected-invite-code"></div>
+          <button class="sync-btn-save" id="copy-invite-btn" style="width:100%;margin-top:8px;">📋 Copy invite</button>
+        </div>
+        <div class="sync-field-label" style="margin-top:12px;">Auto-sync every</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <select id="sync-interval" class="sync-input" style="flex:1;">
+            <option value="0">Manual only</option>
+            <option value="30">30 seconds</option>
+            <option value="60">1 minute</option>
+            <option value="120" selected>2 minutes</option>
+            <option value="300">5 minutes</option>
+          </select>
+        </div>
+        <button class="team-leave-btn" id="leave-team-btn">Switch to Personal</button>
+      </div>
+
+      <div class="sync-status" id="sync-status"></div>
+
+      <details class="team-advanced">
+        <summary>Advanced</summary>
+        <div class="sync-field-label" style="margin-top:8px;">Worker URL override <span style="font-weight:400;color:#bbb;">(blank = built-in)</span></div>
+        <input type="text" id="sync-url" class="sync-input" placeholder="https://…workers.dev">
+        <button class="sync-btn-test" id="sync-url-save-btn" style="margin-top:8px;width:100%;">Save URL</button>
+      </details>
+    </div>
+
+    <div class="settings-section-label">Saved Teams</div>
+    <div class="settings-sync-body">
+      <div id="saved-teams-list"></div>
+    </div>
+
+    <div class="settings-section-label" id="team-lists-label" style="display:none;">Team Lists</div>
+    <div id="team-lists-body"></div>
+
+    <div class="settings-section-label" id="admin-section-label" style="display:none;">Admin</div>
+    <div id="admin-setup-body" style="display:none">
+      <div class="settings-sync-body" style="border-top:none;padding-top:0;">
+        <div class="sync-field-label">Notification email address</div>
+        <input type="text" id="admin-webhook" class="sync-input" placeholder="e.g. your-channel@company.onmicrosoft.com">
+        <div style="font-size:11px;color:#aaa;margin-top:4px;line-height:1.4;">In Teams: channel ··· → Get email address. Notifications will appear as emails in that channel.</div>
+        <div class="sync-row-btns" style="margin-top:8px;">
+          <button class="sync-btn-save" id="webhook-save-btn" style="flex:1;">Save webhook</button>
+          <button class="sync-btn-test" id="webhook-test-btn" style="flex:1;">Send test</button>
+        </div>
+        <div class="sync-status" id="webhook-status"></div>
+
+        <div class="sync-field-label" style="margin-top:14px;">Set / change admin code</div>
+        <input type="password" id="admin-new-code" class="sync-input" placeholder="New admin code (min 6 chars)">
+        <div class="sync-row-btns" style="margin-top:8px;">
+          <button class="sync-btn-save" id="admin-set-btn" style="flex:1;">Set admin code</button>
+        </div>
+        <div class="sync-status" id="admin-status"></div>
+      </div>
+    </div>
+
+    <div class="settings-section-label" style="margin-top:4px;">Data</div>
+
+    <div class="settings-row" id="s-open-data">
+      <div class="settings-row-icon">
+        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M7 9V2M4 6l3 3 3-3"/><path d="M1 10v2.5a.5.5 0 00.5.5h11a.5.5 0 00.5-.5V10"/></svg>
+      </div>
+      <div class="settings-row-text">
+        <div class="settings-row-title">Export / Import</div>
+        <div class="settings-row-sub">Backup, restore, print, or copy your lists</div>
+      </div>
+    </div>
+
+    <div class="settings-row" id="s-clear-done">
+      <div class="settings-row-icon" style="color:#A32D2D">
+        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.2"><polyline points="3,4 11,4"/><path d="M5 4V2h4v2M6 7v4M8 7v4"/><path d="M4 4l.6 8h4.8L10 4"/></svg>
+      </div>
+      <div class="settings-row-text">
+        <div class="settings-row-title" style="color:#A32D2D">Clear completed tasks</div>
+        <div class="settings-row-sub">Frees up storage space</div>
+      </div>
+    </div>
+
+    <div class="settings-section-label" style="margin-top:14px;">About</div>
+    <div class="settings-about">My5 Focus Board v1.0</div>
+
+  </div>
+
+
+</div>
+
+<!-- ── Export menu ─────────────────────────────────────────────────────── -->
+<!-- ── Data drawer (Export / Import) ──────────────────────────────────── -->
+<div class="settings-drawer" id="data-drawer" style="display:none;">
+  <div class="settings-header">
+    <span class="settings-title">Export / Import</span>
+    <span class="settings-close" id="data-drawer-close">×</span>
+  </div>
+
+  <div class="settings-section-label">Export</div>
+  <div class="settings-sync-body">
+    <div class="sync-field-label">List to export</div>
+    <select id="export-list-select" class="sync-input"></select>
+    <div class="sync-row-btns" style="margin-top:10px;flex-wrap:wrap;gap:6px;">
+      <button class="sync-btn-test" id="exp-csv-btn" style="flex:1;">⬇ CSV</button>
+      <button class="sync-btn-test" id="exp-all-btn" style="flex:1;">⬇ All lists</button>
+      <button class="sync-btn-test" id="exp-print-btn" style="flex:1;">🖨 Print</button>
+      <button class="sync-btn-test" id="exp-copy-btn" style="flex:1;">📋 Copy</button>
+    </div>
+    <div class="sync-status" id="export-status"></div>
+  </div>
+
+  <div class="settings-section-label">Import</div>
+  <div class="settings-sync-body">
+    <p class="import-info">
+      Choose a CSV previously exported from this app.<br>
+      Required column: <code>Title</code>. Optional: <code>Category</code>, <code>From</code>, <code>Due</code>, <code>Notes</code>, <code>List</code>, <code>ClientCode</code>, <code>Active</code>.<br>
+      Tasks are <strong>added</strong> to existing lists — nothing is deleted.
+    </p>
+    <input type="file" id="data-import-file-input" accept=".csv" style="display:none">
+    <div id="import-result"></div>
+    <button class="sync-btn-save" id="import-choose-btn" style="width:100%;margin-top:6px;">📂 Choose CSV file…</button>
+  </div>
+</div>
+
+<!-- ── New list modal ──────────────────────────────────────────────────── -->
+<div class="new-list-modal" id="new-list-modal">
+  <div class="new-list-box">
+    <h3>New list</h3>
+    <input type="text" id="new-list-name" placeholder="e.g. Billing, Client X, Month-end..." maxlength="24">
+    <label class="nl-shared-row" id="nl-shared-row" style="display:none;">
+      <input type="checkbox" id="nl-shared">
+      <span>🌐 Share with <b id="nl-shared-team"></b></span>
+    </label>
+    <p style="font-size:11px;color:#aaa;margin:8px 0 0;line-height:1.4;" id="nl-hint">This list is private to you.</p>
+    <div style="display:flex;gap:7px;margin-top:12px;">
+      <button class="btn" id="nl-cancel">Cancel</button>
+      <button class="btn btn-p" id="nl-create">Create list</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Task editor modal ───────────────────────────────────────────────── -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-head" id="modal-head">Add task</div>
+
+    <div class="fl">Title</div>
+    <input type="text" id="f-title" placeholder="What needs doing?" maxlength="120">
+
+    <div class="fl">Category</div>
+    <div class="cat-grid" id="cat-grid"></div>
+
+    <div class="fl">Client code</div>
+    <input type="text" id="f-client" placeholder="e.g. ACME, T-FORCE" maxlength="12">
+
+    <div class="fl">List</div>
+    <select id="f-list"></select>
+
+    <div class="fl">Context</div>
+    <textarea id="f-sender" placeholder="Background, related issue, or anything helpful to know…" rows="2" style="resize:none;"></textarea>
+
+    <div class="fl">Due date</div>
+    <input type="date" id="f-due">
+
+    <div class="fl" style="display:flex;align-items:center;gap:5px;">
+      Attachment link
+      <span class="help-icon" title="Right-click your file in OneDrive or SharePoint → Copy link → paste it here">?</span>
+    </div>
+    <div class="attach-url-wrap">
+      <input type="text" id="f-attach-url" placeholder="Paste OneDrive / SharePoint link here…">
+      <div class="attach-preview" id="attach-preview" style="display:none;">
+        <span class="attach-preview-icon">📎</span>
+        <span class="attach-preview-name" id="attach-preview-name"></span>
+        <span class="attach-remove" id="attach-remove">×</span>
+      </div>
+    </div>
+
+    <div class="note-log" id="note-log" style="display:none">
+      <div class="fl" style="margin-top:8px;">Notes</div>
+      <div class="note-log-entries" id="note-log-entries"></div>
+      <div class="fl" style="margin-top:8px;">Add note</div>
+      <textarea id="f-note-add" placeholder="Type a note… (Enter to save)" rows="2"></textarea>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-danger" id="modal-delete" style="display:none">Delete</button>
+      <div class="modal-actions-right">
+        <button class="btn" id="modal-cancel">Close</button>
+        <button class="btn btn-p" id="modal-save">Add task</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="panel.js"></script>
+</body>
+</html>
