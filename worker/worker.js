@@ -1,6 +1,7 @@
-// Paragon Focus Board — Cloudflare Worker
+// My5 Focus Board — Cloudflare Worker
 // KV binding: FOCUS_BOARD
 // Cron: configure in Cloudflare dashboard for weekly summary
+// NOTE: No endpoint changes vs previous version — rebrand + dead code removal only.
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -15,8 +16,7 @@ function respond(data, status) {
   });
 }
 
-// ── Send notification email via MailChannels ───────────────────────────────
-// Posts JSON to Make.com webhook (or any plain webhook URL)
+// ── Post JSON to Make.com webhook (or any plain webhook URL) ───────────────
 async function sendToWebhook(webhookUrl, payload) {
   if (!webhookUrl) return { ok: false, error: 'No webhook URL' };
   try {
@@ -32,107 +32,6 @@ async function sendToWebhook(webhookUrl, payload) {
     console.error('Webhook error:', e.message);
     return { ok: false, error: e.message };
   }
-}
-// Alias so existing calls work
-async function sendEmail(toAddress, subject, htmlBody) {
-  return { ok: false, error: 'Use sendToWebhook instead' };
-}
-
-function buildNotificationEmail(event) {
-  const icons  = { completed:'✅', claimed:'👋', unclaimed:'🔓', added:'➕' };
-  const verbs  = { completed:'completed', claimed:'is working on', unclaimed:'released', added:'added' };
-  const colors = { completed:'#27500A', claimed:'#633806', unclaimed:'#444', added:'#0C447C' };
-  const bgs    = { completed:'#EAF3DE', claimed:'#FAEEDA', unclaimed:'#f5f5f3', added:'#E6F1FB' };
-
-  const icon  = icons[event.type]  || '📋';
-  const verb  = verbs[event.type]  || event.type;
-  const color = colors[event.type] || '#111';
-  const bg    = bgs[event.type]    || '#f5f5f3';
-  const who   = event.who          || 'Someone';
-  const title = event.taskTitle    || 'Untitled task';
-  const list  = event.listLabel    || '';
-
-  const subject = `${icon} ${who} ${verb} a task — Paragon Focus Board`;
-
-  const html = `
-    <div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;padding:24px;">
-      <div style="background:${bg};border-radius:10px;padding:16px 20px;margin-bottom:16px;">
-        <div style="font-size:28px;margin-bottom:8px;">${icon}</div>
-        <div style="font-size:16px;font-weight:600;color:${color};">${who} ${verb}</div>
-        <div style="font-size:20px;font-weight:700;color:#111;margin:6px 0;">${title}</div>
-        ${list ? `<div style="font-size:13px;color:#888;">List: ${list}</div>` : ''}
-      </div>
-      <div style="font-size:11px;color:#bbb;text-align:center;">
-        Paragon Focus Board · ${new Date(event.ts||Date.now()).toLocaleString()}
-      </div>
-    </div>`;
-
-  return { subject, html };
-}
-
-function buildWeeklySummaryEmail(summary) {
-  const subject = `📋 Weekly Summary — Paragon Focus Board`;
-  const overduRows = (summary.overdue||[]).map(t =>
-    `<tr><td style="padding:4px 8px;border-bottom:0.5px solid #eee;">${t.title}</td><td style="padding:4px 8px;border-bottom:0.5px solid #eee;color:#888;">${t.list}</td></tr>`
-  ).join('');
-  const completedRows = (summary.completedTasks||[]).map(t =>
-    `<li style="margin-bottom:4px;">${t.title}${t.who?' <span style="color:#888;font-size:12px;">('+t.who+')</span>':''}</li>`
-  ).join('');
-
-  const html = `
-    <div style="font-family:system-ui,sans-serif;max-width:520px;margin:0 auto;padding:24px;">
-      <div style="background:#3B6D11;border-radius:10px;padding:20px 24px;margin-bottom:20px;">
-        <div style="font-size:22px;font-weight:700;color:#fff;">📋 Weekly Summary</div>
-        <div style="font-size:13px;color:#C0DD97;margin-top:4px;">${summary.weekOf}</div>
-      </div>
-
-      <div style="display:flex;gap:12px;margin-bottom:20px;">
-        <div style="flex:1;background:#EAF3DE;border-radius:8px;padding:14px;text-align:center;">
-          <div style="font-size:28px;font-weight:700;color:#3B6D11;">${summary.completed}</div>
-          <div style="font-size:12px;color:#639922;">✅ Completed</div>
-        </div>
-        <div style="flex:1;background:#E6F1FB;border-radius:8px;padding:14px;text-align:center;">
-          <div style="font-size:28px;font-weight:700;color:#0C447C;">${summary.added}</div>
-          <div style="font-size:12px;color:#185FA5;">➕ Added</div>
-        </div>
-        <div style="flex:1;background:#FAEEDA;border-radius:8px;padding:14px;text-align:center;">
-          <div style="font-size:28px;font-weight:700;color:#633806;">${summary.claimed}</div>
-          <div style="font-size:12px;color:#854F0B;">👋 Claimed</div>
-        </div>
-      </div>
-
-      ${completedRows ? `
-      <div style="margin-bottom:20px;">
-        <div style="font-size:13px;font-weight:600;color:#111;margin-bottom:8px;">Completed this week</div>
-        <ul style="margin:0;padding-left:20px;font-size:13px;color:#333;">${completedRows}</ul>
-      </div>` : ''}
-
-      ${summary.roster ? `
-      <div style="background:#f5f5f3;border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:13px;">
-        🏃 <strong>Active team members:</strong> ${summary.roster}
-      </div>` : ''}
-
-      ${overduRows ? `
-      <div style="margin-bottom:20px;">
-        <div style="font-size:13px;font-weight:600;color:#A32D2D;margin-bottom:8px;">⚠️ Overdue tasks</div>
-        <table style="width:100%;border-collapse:collapse;font-size:13px;">
-          <thead><tr>
-            <th style="text-align:left;padding:4px 8px;background:#FCEBEB;color:#791F1F;">Task</th>
-            <th style="text-align:left;padding:4px 8px;background:#FCEBEB;color:#791F1F;">List</th>
-          </tr></thead>
-          <tbody>${overduRows}</tbody>
-        </table>
-      </div>` : `
-      <div style="background:#EAF3DE;border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:#3B6D11;">
-        ✓ No overdue tasks — great work!
-      </div>`}
-
-      <div style="font-size:11px;color:#bbb;text-align:center;">
-        Paragon Focus Board · Auto-generated weekly summary
-      </div>
-    </div>`;
-
-  return { subject, html };
 }
 
 // ── Log activity for weekly summary ───────────────────────────────────────
@@ -195,42 +94,9 @@ async function sendWeeklySummary(env, team) {
     });
   }
 
-  var lines = [];
-  lines.push('**Week of ' + new Date().toLocaleDateString('en-US', {month:'long', day:'numeric', year:'numeric'}) + '**');
-  lines.push('');
-  lines.push('✅ **Completed:** ' + completed.length + ' task' + (completed.length!==1?'s':''));
-  if (completed.length) {
-    completed.slice(0,5).forEach(function(e) {
-      lines.push('  • ' + e.taskTitle + (e.who?' (' + e.who + ')':''));
-    });
-    if (completed.length > 5) lines.push('  • ...and ' + (completed.length-5) + ' more');
-  }
-  lines.push('');
-  lines.push('➕ **Added:** ' + added.length + ' new task' + (added.length!==1?'s':''));
-  lines.push('👋 **Claimed:** ' + claimed.length + ' task' + (claimed.length!==1?'s':''));
-  lines.push('');
-  if (roster) lines.push('🏃 **Active team members:** ' + roster);
-  if (overdue.length) {
-    lines.push('');
-    lines.push('⚠️ **Overdue (' + overdue.length + '):**');
-    overdue.slice(0,5).forEach(function(t) {
-      lines.push('  • ' + t.title + ' — ' + t.list);
-    });
-    if (overdue.length > 5) lines.push('  • ...and ' + (overdue.length-5) + ' more');
-  }
-
-  const email = buildWeeklySummaryEmail({
-    weekOf:         new Date().toLocaleDateString('en-US', {month:'long', day:'numeric', year:'numeric'}),
-    completed:      completed.length,
-    added:          added.length,
-    claimed:        claimed.length,
-    roster:         roster,
-    overdue:        overdue.slice(0, 10),
-    completedTasks: completed.slice(0, 5).map(function(e) { return { title: e.taskTitle, who: e.who }; }),
-  });
   await sendToWebhook(webhookUrl, {
     type:      'weekly_summary',
-    who:       'Focus Board',
+    who:       'My5 Focus Board',
     taskTitle: 'Weekly Summary',
     listLabel: '',
     summary: {
@@ -399,6 +265,8 @@ async function handle(req) {
   }
 
   // ── POST /lists/:id ────────────────────────────────────────────────────
+  // Note: any team member can push/create a list here — admin is only
+  // required for destructive actions (DELETE) and webhook/admin setup.
   if (method === 'POST' && path.indexOf('/lists/') === 0) {
     var listId = path.slice(7);
     if (!listId) return respond({ error: 'Missing list ID' }, 400);
