@@ -2668,7 +2668,9 @@ function wireRoutines() {
     const recur = { type };
     if (type === 'weekly')  recur.day  = Number(daySel.value);
     if (type === 'monthly') recur.date = Number(dateSel.value);
-    routines.push({ id: nextRoutineId++, title, recur, lastSpawned: '' });
+    // Start looking from today forward — never backfill past occurrences
+    const y = new Date(); y.setDate(y.getDate() - 1);
+    routines.push({ id: nextRoutineId++, title, recur, lastSpawned: ymd(y) });
     document.getElementById('routine-title').value = '';
     saveState();
     renderRoutinesDrawer();
