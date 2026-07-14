@@ -130,6 +130,8 @@ function applyState(s) {
   if (s.doneTasks)  doneTasks  = s.doneTasks;
   if (s.nextId)     nextId     = s.nextId;
   if (s.nextListId) nextListId = s.nextListId;
+  if (s.routines) routines = s.routines;
+  if (s.nextRoutineId) nextRoutineId = s.nextRoutineId;
   // migrate old listId names
   tasks.forEach(t => {
     if (t.listId === 'now')   t.listId = 'pipeline';
@@ -272,6 +274,7 @@ function makeCard(t, context) {
   const isActive = context === 'active';
   const outer    = document.createElement('div');
   outer.className  = isActive ? 'my5-card' : 'card';
+  if (t.routineId) outer.className += ' card-routine';
   outer.dataset.id = t.id;
 
   // ── Determine if this is a shared list ───────────────────────────────
@@ -312,6 +315,7 @@ function makeCard(t, context) {
       <div class="card-body" data-body="${t.id}">
         <div class="card-row1">
           <div class="card-check${t.done?' done':''}" data-check="${t.id}"></div>
+          ${t.routineId ? '<span class="card-recur-badge" title="Recurring task">🔁</span>' : ''}
           <div class="card-title" contenteditable="false" data-title="${t.id}" title="${t.title}">${t.title}</div>
           ${t.client ? `<span class="card-client" title="${t.client}">${t.client}</span>` : ''}
         </div>
@@ -1440,7 +1444,7 @@ function personalState() {
     savedAt: Date.now(),
     lists: pl,
     tasks: tasks.filter(t => plIds.has(t.listId)),
-    doneTasks, nextId, nextListId
+    doneTasks, nextId, nextListId, routines, nextRoutineId
   };
 }
 
@@ -1455,6 +1459,8 @@ function applyPersonalState(st) {
     doneTasks  = st.doneTasks || [];
     nextId     = Math.max(nextId,     st.nextId     || 1);
     nextListId = Math.max(nextListId, st.nextListId || 1);
+    if (st.routines) routines = st.routines;
+    nextRoutineId = Math.max(nextRoutineId, st.nextRoutineId || 1);
     if (!lists.find(l => l.id === currentTab)) currentTab = 'pipeline';
     lists.filter(l => !l.builtin).forEach(l => ensureView(l.id));
     personalLastSaved = st.savedAt || Date.now();
@@ -1462,6 +1468,8 @@ function applyPersonalState(st) {
     renderTabStrip();
     switchTab(currentTab); // full DOM rebuild
     updateDoneUI();
+    renderRoutinesDrawer();
+    materializeRoutines();
   } finally {
     suppressPersonalPush = false;
   }
@@ -2375,6 +2383,8 @@ loadState(()=>{
   applyTheme(prefs.theme);
   applyFont(prefs.font);
   renderTabStrip(); updateDoneUI(); render();
+  wireRoutines();
+  materializeRoutines();
   syncPullAll();
   if (personalReady()) personalTick();
   startSyncTimer();
@@ -2521,3 +2531,153 @@ loadState(()=>{
     document.addEventListener('touchcancel', onEnd);
   }, { passive: true });
 })();
+
+// ── Routines (recurring tasks) ──────────────────────────────────────────────
+// Templates live in the Routines drawer; on each due day one instance is
+// spawned into Pipeline as a normal, movable task (tinted + 🔁 badge).
+// Missed days collapse: max ONE open instance per routine at a time.
+
+function ymd(d) {
+  const p = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+}
+
+// Most recent occurrence of a routine on or before `today` (Date), or null
+function lastDueOccurrence(recur, today) {
+  const d = new Date(today); d.setHours(0,0,0,0);
+  for (let i = 0; i < 62; i++) { // scan back up to ~2 months
+    const dow = d.getDay();
+    if (recur.type === 'daily') return new Date(d);
+    if (recur.type === 'weekdays' && dow >= 1 && dow <= 5) return new Date(d);
+    if (recur.type === 'weekly' && dow === Number(recur.day)) return new Date(d);
+    if (recur.type === 'monthly') {
+      const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+      const target  = Math.min(Number(recur.date), lastDay); // clamp e.g. 31st in Feb
+      if (d.getDate() === target) return new Date(d);
+    }
+    d.setDate(d.getDate() - 1);
+  }
+  return null;
+}
+
+function recurLabel(recur) {
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  if (recur.type === 'daily')    return 'Daily';
+  if (recur.type === 'weekdays') return 'Weekdays';
+  if (recur.type === 'weekly')   return 'Weekly · ' + days[Number(recur.day)];
+  if (recur.type === 'monthly')  return 'Monthly · ' + recur.date + getOrdinal(Number(recur.date));
+  return '';
+}
+function getOrdinal(n) {
+  if (n % 100 >= 11 && n % 100 <= 13) return 'th';
+  return ['th','st','nd','rd'][n % 10] || 'th';
+}
+
+// Spawn any instances that are due — called at load, hourly, and after sync
+function materializeRoutines() {
+  if (!routines.length) return;
+  const today = new Date(); today.setHours(0,0,0,0);
+  let changed = false;
+  routines.forEach(r => {
+    const due = lastDueOccurrence(r.recur, today);
+    if (!due) return;
+    const dueStr = ymd(due);
+    if (r.lastSpawned && r.lastSpawned >= dueStr) return;          // already spawned this occurrence
+    const open = tasks.find(t => t.routineId === r.id && !t.done); // collapse missed days
+    if (open) { r.lastSpawned = dueStr; changed = true; return; }  // existing instance carries the overdue
+    tasks.push({
+      id: nextId++, listId: 'pipeline', active: false,
+      title: r.title, cat: 'action', due: dueStr,
+      routineId: r.id, createdAt: new Date().toISOString()
+    });
+    r.lastSpawned = dueStr;
+    changed = true;
+  });
+  if (changed) { saveState(); renderTabStrip(); render(); renderRoutinesDrawer(); }
+}
+
+function renderRoutinesDrawer() {
+  const listEl = document.getElementById('routines-list');
+  const countEl = document.getElementById('routines-count');
+  if (!listEl) return;
+  countEl.textContent = routines.length ? routines.length : '';
+  document.getElementById('routines-box').classList.toggle('has-routines', routines.length > 0);
+  listEl.innerHTML = '';
+  if (!routines.length) {
+    listEl.innerHTML = '<div class="routines-empty">No routines yet — add your first recurring task below.</div>';
+    return;
+  }
+  const today = new Date(); today.setHours(0,0,0,0);
+  routines.forEach(r => {
+    const row = document.createElement('div');
+    row.className = 'routine-row';
+    const open = tasks.find(t => t.routineId === r.id && !t.done);
+    const status = open ? '<span class="routine-live" title="An instance is in your lists">● live</span>' : '';
+    row.innerHTML = `
+      <span class="routine-row-title" title="Click to rename">${r.title}</span>
+      <span class="routine-chip">${recurLabel(r.recur)}</span>
+      ${status}
+      <span class="routine-del" title="Delete routine">×</span>`;
+    row.querySelector('.routine-row-title').addEventListener('click', () => {
+      const name = prompt('Rename routine:', r.title);
+      if (name && name.trim()) { r.title = name.trim(); saveState(); renderRoutinesDrawer(); }
+    });
+    row.querySelector('.routine-del').addEventListener('click', () => {
+      if (!confirm(`Delete routine "${r.title}"?\n\nAlready-spawned tasks stay in your lists; no new ones will appear.`)) return;
+      routines = routines.filter(x => x.id !== r.id);
+      tasks.forEach(t => { if (t.routineId === r.id) delete t.routineId; });
+      saveState(); renderRoutinesDrawer(); render();
+    });
+    listEl.appendChild(row);
+  });
+}
+
+function wireRoutines() {
+  // Collapse/expand
+  document.getElementById('routines-header').addEventListener('click', () => {
+    const body = document.getElementById('routines-body');
+    const open = body.style.display !== 'none';
+    body.style.display = open ? 'none' : 'block';
+    document.getElementById('routines-chevron').textContent = open ? '▸' : '▾';
+    prefs.routinesOpen = !open; saveSyncConfig();
+  });
+  if (prefs.routinesOpen) {
+    document.getElementById('routines-body').style.display = 'block';
+    document.getElementById('routines-chevron').textContent = '▾';
+  }
+
+  // Recurrence selector shows/hides day & date pickers
+  const recurSel = document.getElementById('routine-recur');
+  const daySel   = document.getElementById('routine-day');
+  const dateSel  = document.getElementById('routine-date');
+  for (let i = 1; i <= 31; i++) {
+    const o = document.createElement('option');
+    o.value = i; o.textContent = i + getOrdinal(i);
+    dateSel.appendChild(o);
+  }
+  recurSel.addEventListener('change', () => {
+    daySel.style.display  = recurSel.value === 'weekly'  ? 'block' : 'none';
+    dateSel.style.display = recurSel.value === 'monthly' ? 'block' : 'none';
+  });
+
+  // Add routine
+  const add = () => {
+    const title = document.getElementById('routine-title').value.trim();
+    if (!title) return;
+    const type  = recurSel.value;
+    const recur = { type };
+    if (type === 'weekly')  recur.day  = Number(daySel.value);
+    if (type === 'monthly') recur.date = Number(dateSel.value);
+    routines.push({ id: nextRoutineId++, title, recur, lastSpawned: '' });
+    document.getElementById('routine-title').value = '';
+    saveState();
+    renderRoutinesDrawer();
+    materializeRoutines(); // due today? appears in Pipeline immediately
+  };
+  document.getElementById('routine-add-btn').addEventListener('click', add);
+  document.getElementById('routine-title').addEventListener('keydown', e => { if (e.key === 'Enter') add(); });
+
+  renderRoutinesDrawer();
+  // Re-check hourly while the panel stays open
+  setInterval(materializeRoutines, 60 * 60 * 1000);
+}
