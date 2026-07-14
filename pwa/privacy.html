@@ -1,1 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — My5 Focus Board</title>
+  <style>
+    body{font-family:system-ui,-apple-system,sans-serif;max-width:680px;margin:0 auto;padding:32px 20px;color:#222;line-height:1.6;}
+    h1{font-size:24px;} h2{font-size:16px;margin-top:28px;}
+    p,li{font-size:14px;} .updated{color:#888;font-size:12px;}
+  </style>
+</head>
+<body>
+  <h1>Privacy Policy — My5 Focus Board</h1>
+  <p class="updated">Last updated: July 2026</p>
 
+  <p>My5 Focus Board is a task management tool provided as a Chrome extension and web app for internal team use. This policy describes what data the tool handles and how.</p>
+
+  <h2>What data is stored</h2>
+  <ul>
+    <li><strong>Task data you create:</strong> task titles, notes, comments, due dates, categories, client codes, and completion history.</li>
+    <li><strong>Display name (optional):</strong> a first name or nickname you choose, shown alongside your task claims, comments, and team notifications.</li>
+    <li><strong>Preferences:</strong> theme, font, sound, and sync settings, including team and device sync codes.</li>
+  </ul>
+
+  <h2>Where it lives</h2>
+  <p>All data is stored locally on your device (browser storage). If you enable team sync or device sync, your task data and display name are transmitted to and stored on a private, self-hosted Cloudflare Worker operated by the team that deploys this tool. Data is scoped by team code; only people who hold a team's code can access that team's shared lists.</p>
+
+  <h2>What is NOT collected</h2>
+  <ul>
+    <li>No browsing history, page content, or activity outside the extension is read or collected.</li>
+    <li>No analytics, tracking, or advertising identifiers.</li>
+    <li>No health, financial, location, or authentication data.</li>
+  </ul>
+
+  <h2>Data sharing</h2>
+  <p>Data is never sold or transferred to third parties. If a team configures optional notifications, task event summaries (task title, list name, and display name) are forwarded to the team's own configured webhook (e.g. Microsoft Teams via Make.com). Data is not used for any purpose beyond operating the task board.</p>
+
+  <h2>Data removal</h2>
+  <p>Removing the extension deletes all locally stored data. Synced data can be removed by the team administrator via the team's Cloudflare Worker KV storage. To request removal of synced data, contact your team administrator.</p>
+
+  <h2>Contact</h2>
+  <p>Questions about this policy can be directed to the extension publisher through the Chrome Web Store listing.</p>
+</body>
+</html>

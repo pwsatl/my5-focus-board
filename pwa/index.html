@@ -67,6 +67,35 @@
     <div class="my5-drop" id="active-zone"></div>
   </div>
 
+  <!-- ── Routines (recurring tasks) ─────────────────────────────────────── -->
+  <div class="routines-box" id="routines-box">
+    <div class="routines-header" id="routines-header">
+      <span class="routines-title">🔁 Routines <span class="routines-count" id="routines-count"></span></span>
+      <span class="routines-chevron" id="routines-chevron">▸</span>
+    </div>
+    <div class="routines-body" id="routines-body" style="display:none;">
+      <div id="routines-list"></div>
+      <div class="routine-add-row">
+        <input type="text" id="routine-title" class="sync-input" placeholder="e.g. Daily safety walk" maxlength="80">
+        <div class="routine-add-controls">
+          <select id="routine-recur" class="sync-input">
+            <option value="daily">Daily</option>
+            <option value="weekdays">Weekdays (Mon–Fri)</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+          </select>
+          <select id="routine-day" class="sync-input" style="display:none;">
+            <option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option>
+            <option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option><option value="0">Sunday</option>
+          </select>
+          <select id="routine-date" class="sync-input" style="display:none;"></select>
+          <button class="sync-btn-save" id="routine-add-btn">Add</button>
+        </div>
+      </div>
+      <div class="routines-hint">Routines drop a task into Pipeline on their day — move it anywhere from there.</div>
+    </div>
+  </div>
+
   <!-- ── Tab strip ──────────────────────────────────────────────────────── -->
   <div class="tab-strip" id="tab-strip">
     <div class="tab-add" id="tab-add" title="New list">+</div>

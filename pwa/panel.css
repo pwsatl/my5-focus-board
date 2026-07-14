@@ -821,3 +821,61 @@ body.theme-sparkles .panel-title {
   box-shadow: 0 8px 24px rgba(0,0,0,0.25); border-radius: 8px;
   background: #fff;
 }
+
+/* ── Routines drawer ─────────────────────────────────────────────────── */
+.routines-box{
+  margin:6px 10px 2px; border:1px solid #DCD5F0; border-radius:10px;
+  background:#F5F3FC; overflow:hidden;
+}
+.routines-header{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:7px 12px; cursor:pointer; user-select:none;
+}
+.routines-header:hover{ background:#EEEAF8; }
+.routines-title{ font-size:12px; font-weight:700; color:#4E4090; }
+.routines-count{
+  font-size:10px; font-weight:700; background:#DCD5F0; color:#4E4090;
+  border-radius:8px; padding:1px 7px; margin-left:4px;
+}
+.routines-chevron{ font-size:11px; color:#8B7FC0; }
+.routines-body{ padding:4px 12px 10px; border-top:1px solid #E6E1F5; }
+.routines-empty{ font-size:11.5px; color:#9A8FC7; padding:6px 0; }
+.routine-row{
+  display:flex; align-items:center; gap:8px; padding:5px 0;
+  border-bottom:0.5px solid #E9E4F7; font-size:12.5px;
+}
+.routine-row:last-child{ border-bottom:none; }
+.routine-row-title{ flex:1; color:#333; cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.routine-row-title:hover{ text-decoration:underline; }
+.routine-chip{
+  font-size:10px; font-weight:600; color:#4E4090; background:#E6E1F5;
+  border-radius:7px; padding:2px 7px; white-space:nowrap;
+}
+.routine-live{ font-size:9.5px; color:#639922; white-space:nowrap; }
+.routine-del{
+  color:#C5BBE5; cursor:pointer; font-size:15px; line-height:1; padding:0 2px;
+}
+.routine-del:hover{ color:#A32D2D; }
+.routine-add-row{ margin-top:8px; }
+.routine-add-row .sync-input{ margin-bottom:6px; }
+.routine-add-controls{ display:flex; gap:6px; }
+.routine-add-controls .sync-input{ flex:1; margin-bottom:0; }
+.routine-add-controls .sync-btn-save{ min-width:56px; }
+.routines-hint{ font-size:10.5px; color:#9A8FC7; margin-top:8px; line-height:1.4; }
+
+/* Routine task instances — tinted so recurring work reads at a glance */
+.card.card-routine{ background:#FAF8FE; border-color:#DCD5F0; }
+.card.card-routine:hover{ background:#F5F1FC; }
+.my5-card.card-routine{ box-shadow:inset 3px 0 0 #8B7FC0; }
+.card-recur-badge{ font-size:10px; flex-shrink:0; }
+
+/* Dark themes */
+.theme-dark .routines-box{ background:#26223A; border-color:#3D3760; }
+.theme-dark .routines-header:hover{ background:#2D2846; }
+.theme-dark .routines-title{ color:#B4A8E8; }
+.theme-dark .routines-count{ background:#3D3760; color:#B4A8E8; }
+.theme-dark .routines-body{ border-top-color:#3D3760; }
+.theme-dark .routine-row{ border-bottom-color:#332E52; }
+.theme-dark .routine-row-title{ color:#ddd; }
+.theme-dark .routine-chip{ background:#3D3760; color:#B4A8E8; }
+.theme-dark .card.card-routine{ background:#262138; border-color:#3D3760; }

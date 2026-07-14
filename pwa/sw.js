@@ -1,5 +1,5 @@
 // My5 Focus Board — PWA service worker
-const CACHE = 'my5-shell-v4';
+const CACHE = 'my5-shell-v5';
 const SHELL = ['./', './index.html', './panel.css', './panel.js', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
