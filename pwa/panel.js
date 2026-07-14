@@ -132,6 +132,7 @@ function applyState(s) {
   if (s.nextListId) nextListId = s.nextListId;
   if (s.routines) routines = s.routines;
   if (s.nextRoutineId) nextRoutineId = s.nextRoutineId;
+  ensureBuiltinLists();
   // migrate old listId names
   tasks.forEach(t => {
     if (t.listId === 'now')   t.listId = 'pipeline';
@@ -1321,6 +1322,37 @@ function wireSettingsSync() {
     btn.textContent = '↻ Sync now';
     setPsStatus('✓ Synced.', 'ok');
   });
+  document.getElementById('ps-use-remote-btn').addEventListener('click', () => {
+    if (!pendingRemote) return;
+    applyPersonalState(pendingRemote); // preapply backup is written automatically first
+    pendingRemote = null;
+    document.getElementById('ps-conflict').style.display = 'none';
+    setPsStatus('✓ Synced board applied. (Your old board is in Restore from backup if needed.)', 'ok');
+  });
+  document.getElementById('ps-keep-mine-btn').addEventListener('click', async () => {
+    pendingRemote = null;
+    document.getElementById('ps-conflict').style.display = 'none';
+    await personalPush(true);
+    setPsStatus('✓ This device\'s board is now the synced board.', 'ok');
+  });
+
+  // Restore from backup
+  document.getElementById('s-restore').addEventListener('click', () => {
+    readBackups(backups => {
+      if (!backups.length) { alert('No backups yet. Backups are written automatically at each app start and before any sync overwrite.'); return; }
+      const menu = backups.map((b, i) =>
+        `${i + 1}) ${b.label} — ${b.state.tasks.length} tasks — ${new Date(b.ts).toLocaleString()}`).join('\n');
+      const pick = prompt('Restore your personal board from a backup:\n\n' + menu + '\n\nEnter a number (or Cancel):');
+      const idx = parseInt(pick) - 1;
+      if (isNaN(idx) || !backups[idx]) return;
+      const b = backups[idx];
+      if (!confirm(`Restore "${b.label}" (${b.state.tasks.length} tasks)?\n\nThis replaces this device's personal board and, if Device Sync is on, becomes the synced board.`)) return;
+      applyPersonalState(b.state);
+      if (personalReady()) personalPush(true);
+      alert('✓ Board restored.');
+    });
+  });
+
   document.getElementById('ps-off-btn').addEventListener('click', () => {
     if (!confirm('Turn off device sync on THIS device?\n\nYour board stays on this device and stays synced on your other devices. You can re-link anytime with your code:\n\n' + personalSync.code)) return;
     personalSync = { code: '', adminCode: '' };
@@ -1428,6 +1460,47 @@ async function createSharedList(label) {
 // tasks — syncs as ONE blob to a private space on the Worker, keyed by a
 // personal code. Completely separate from shared team lists. Last write wins.
 const PERSONAL_LIST_ID = 'personal-board';
+const BACKUP_PREFIX = 'my5_backup_';
+let pendingRemote = null; // held when a suspicious remote snapshot needs user choice
+
+function writeBackup(tag) {
+  try {
+    const st = personalState();
+    if (!st.tasks.length && !st.lists.some(l => !l.builtin)) return; // never back up an empty board
+    const snap = JSON.stringify({ ts: Date.now(), state: st });
+    try { chrome.storage.local.set({ [BACKUP_PREFIX + tag]: snap }); }
+    catch(e) { localStorage.setItem(BACKUP_PREFIX + tag, snap); }
+  } catch(e) {}
+}
+
+function readBackups(cb) {
+  const tags = ['boot', 'prev', 'preapply'];
+  const labels = { boot: 'Last app start', prev: 'Previous app start', preapply: 'Before last sync overwrite' };
+  const parse = raws => tags
+    .map(t => ({ tag: t, label: labels[t], raw: raws[BACKUP_PREFIX + t] }))
+    .filter(x => x.raw)
+    .map(x => { try { const p = JSON.parse(x.raw); return { tag: x.tag, label: x.label, ts: p.ts, state: p.state }; } catch(e) { return null; } })
+    .filter(Boolean);
+  try {
+    chrome.storage.local.get(tags.map(t => BACKUP_PREFIX + t), r => cb(parse(r)));
+  } catch(e) {
+    const r = {}; tags.forEach(t => { r[BACKUP_PREFIX + t] = localStorage.getItem(BACKUP_PREFIX + t); });
+    cb(parse(r));
+  }
+}
+
+function rotateBootBackup() {
+  try {
+    chrome.storage.local.get(BACKUP_PREFIX + 'boot', r => {
+      if (r[BACKUP_PREFIX + 'boot']) chrome.storage.local.set({ [BACKUP_PREFIX + 'prev']: r[BACKUP_PREFIX + 'boot'] });
+      writeBackup('boot');
+    });
+  } catch(e) {
+    const b = localStorage.getItem(BACKUP_PREFIX + 'boot');
+    if (b) localStorage.setItem(BACKUP_PREFIX + 'prev', b);
+    writeBackup('boot');
+  }
+}
 
 function personalReady() {
   return !!(personalSync.code && workerConfigured());
@@ -1448,13 +1521,26 @@ function personalState() {
   };
 }
 
+// Builtin lists must always exist, no matter what a snapshot or import says
+function ensureBuiltinLists() {
+  if (!lists.find(l => l.id === 'backlog'))  lists.unshift({ id:'backlog',  label:'Backlog',  builtin:true });
+  if (!lists.find(l => l.id === 'pipeline')) lists.unshift({ id:'pipeline', label:'Pipeline', builtin:true });
+}
+
 // Replace local personal data with a remote snapshot (shared lists untouched)
 function applyPersonalState(st) {
+  // Sanity gate: never apply a snapshot that would wipe the board
+  if (!st || !Array.isArray(st.lists) || !st.lists.length) {
+    console.warn('[DeviceSync] Ignored invalid remote snapshot');
+    return;
+  }
+  writeBackup('preapply'); // safety net: current board is recoverable after any overwrite
   suppressPersonalPush = true;
   try {
     const sharedLists = lists.filter(l => l.shared);
     const sharedIds   = new Set(sharedLists.map(l => l.id));
     lists = [ ...(st.lists || []).filter(l => !l.shared), ...sharedLists ];
+    ensureBuiltinLists();
     tasks = [ ...(st.tasks || []), ...tasks.filter(t => sharedIds.has(t.listId)) ];
     doneTasks  = st.doneTasks || [];
     nextId     = Math.max(nextId,     st.nextId     || 1);
@@ -1480,9 +1566,20 @@ function schedulePersonalPush() {
   personalPushTimer = setTimeout(() => { personalPush(); }, 2500);
 }
 
-async function personalPush() {
+async function personalPush(force) {
   if (!personalReady()) return;
   const state = personalState();
+  // Guard: an empty board never silently overwrites a populated synced board
+  if (!force && state.tasks.length === 0) {
+    try {
+      const remote = await personalFetchRemote();
+      if (remote && (remote.tasks || []).length > 3) {
+        console.warn('[DeviceSync] Blocked auto-push of empty board over', remote.tasks.length, 'synced tasks');
+        setPsStatus('⚠ This device\'s board is empty — auto-sync paused so it can\'t overwrite your synced tasks. Use "↻ Sync now" in Device Sync to pull them down.', 'error');
+        return;
+      }
+    } catch(e) {}
+  }
   personalLastSaved = state.savedAt;
   try {
     await fetch(`${workerUrl()}/lists/${PERSONAL_LIST_ID}`, {
@@ -1510,6 +1607,14 @@ async function personalTick() {
     const remote = await personalFetchRemote();
     if (!remote) { await personalPush(); return; }
     if (remote.savedAt > personalLastSaved) {
+      const localN  = personalState().tasks.length;
+      const remoteN = (remote.tasks || []).length;
+      // Guard: a much-smaller remote never auto-applies — the user decides
+      if (localN >= 5 && remoteN < localN * 0.5) {
+        pendingRemote = remote;
+        renderSyncConflict(localN, remoteN);
+        return;
+      }
       console.log('[DeviceSync] Remote board is newer — applying');
       applyPersonalState(remote);
     } else if (remote.savedAt < personalLastSaved) {
@@ -1600,6 +1705,15 @@ async function linkPersonalSync() {
     setPsStatus('Error: ' + e.message, 'error');
   }
   btn.disabled = false; btn.textContent = 'Link';
+}
+
+function renderSyncConflict(localN, remoteN) {
+  const el = document.getElementById('ps-conflict');
+  if (!el) return;
+  el.style.display = 'block';
+  document.getElementById('ps-conflict-text').textContent =
+    `The synced board has ${remoteN} task${remoteN!==1?'s':''}, but this device has ${localN}. Which should win?`;
+  setPsStatus('⚠ Sync paused — choose which board to keep below.', 'error');
 }
 
 function setPsStatus(msg, type) {
@@ -2383,6 +2497,7 @@ loadState(()=>{
   applyTheme(prefs.theme);
   applyFont(prefs.font);
   renderTabStrip(); updateDoneUI(); render();
+  rotateBootBackup();
   wireRoutines();
   materializeRoutines();
   syncPullAll();
