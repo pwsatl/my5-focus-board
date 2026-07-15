@@ -53,6 +53,8 @@ let syncConfig = { url: '', team: '', adminCode: '', interval: 120 };
 let savedTeams = []; // [{ name, url, team, adminCode }]
 // Device sync: whole personal board (My 5, Pipeline, Backlog, private lists) as one blob
 let personalSync = { code: '', adminCode: '' };
+let routines = [];        // recurring task templates
+let nextRoutineId = 1;
 let personalLastSaved = 0;        // ms timestamp of last local personal change
 let personalPushTimer = null;     // debounce handle
 let suppressPersonalPush = false; // true while applying a remote board
@@ -1460,6 +1462,7 @@ async function createSharedList(label) {
 // tasks — syncs as ONE blob to a private space on the Worker, keyed by a
 // personal code. Completely separate from shared team lists. Last write wins.
 const PERSONAL_LIST_ID = 'personal-board';
+const STATE_VERSION = 2; // bump when the snapshot format changes
 const BACKUP_PREFIX = 'my5_backup_';
 let pendingRemote = null; // held when a suspicious remote snapshot needs user choice
 
@@ -1515,6 +1518,7 @@ function personalState() {
   const plIds = new Set(pl.map(l => l.id));
   return {
     savedAt: Date.now(),
+    v: STATE_VERSION,
     lists: pl,
     tasks: tasks.filter(t => plIds.has(t.listId)),
     doneTasks, nextId, nextListId, routines, nextRoutineId
@@ -1575,7 +1579,8 @@ async function personalPush(force) {
       const remote = await personalFetchRemote();
       if (remote && (remote.tasks || []).length > 3) {
         console.warn('[DeviceSync] Blocked auto-push of empty board over', remote.tasks.length, 'synced tasks');
-        setPsStatus('⚠ This device\'s board is empty — auto-sync paused so it can\'t overwrite your synced tasks. Use "↻ Sync now" in Device Sync to pull them down.', 'error');
+        pendingRemote = remote;
+        renderSyncConflict(0, remote.tasks.length);
         return;
       }
     } catch(e) {}
@@ -1606,6 +1611,10 @@ async function personalTick() {
   try {
     const remote = await personalFetchRemote();
     if (!remote) { await personalPush(); return; }
+    if (remote.v && remote.v > STATE_VERSION) {
+      setPsStatus('⚠ Your synced board was saved by a newer version of My5 Focus Board. Update this device to keep syncing.', 'error');
+      return;
+    }
     if (remote.savedAt > personalLastSaved) {
       const localN  = personalState().tasks.length;
       const remoteN = (remote.tasks || []).length;
@@ -2499,9 +2508,15 @@ loadState(()=>{
   renderTabStrip(); updateDoneUI(); render();
   rotateBootBackup();
   wireRoutines();
-  materializeRoutines();
   syncPullAll();
-  if (personalReady()) personalTick();
+  (async () => {
+    if (personalReady()) {
+      try { await personalTick(); } catch(e) {}
+    }
+    // Spawn routines only AFTER the board is reconciled with the synced copy —
+    // otherwise the spawn stamps "local is newest" and stale data wins
+    materializeRoutines();
+  })();
   startSyncTimer();
 });
 
